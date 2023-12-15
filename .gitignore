@@ -1,3 +1,8 @@
+.idea/
+test*
+.cache/
+build/
+bin/
 # Prerequisites
 *.d
 
