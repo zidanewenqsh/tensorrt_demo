@@ -49,17 +49,42 @@ message(STATUS "\${Boost_LIBRARIES}=${Boost_LIBRARIES}")
 
 # 指定 include 目录
 include_directories(${OpenCV_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ${TENSORRT_INCLUDE_DIR} ${Boost_INCLUDE_DIR})
-include_directories(include)
+include_directories(include include/common)
 # 指定库文件目录
-link_directories(lib /usr/local/lib /usr/lib/x86_64-linux-gnu/)
+link_directories(lib /usr/local/lib /usr/lib/x86_64-linux-gnu/ /usr/local/cuda/lib64 /usr/local/lib64)
+# link_directories(lib /usr/local/lib /usr/lib/x86_64-linux-gnu/ /usr/local/cuda/lib64 /usr/local/lib64)
+
+# 设置环境变量 LD_LIBRARY_PATH
+set(ENV{LD_LIBRARY_PATH} "/usr/local/lib:$ENV{LD_LIBRARY_PATH}")
+
+
 # 指定源文件目录
-file(GLOB_RECURSE SRC_FILES "src/*.c" "src/*.cpp" "src/*.cu")
+# file(GLOB_RECURSE SRC_FILES "src/*.c" "src/*.cpp" "src/*.cu")
+file(GLOB SRC_FILES "src/*.c" "src/*.cpp" "src/*.cu")
 
 # 为每个源文件创建一个可执行目标
 foreach(SOURCE_FILE ${SRC_FILES})
     get_filename_component(EXE_NAME ${SOURCE_FILE} NAME_WE)
     add_executable(${EXE_NAME} ${SOURCE_FILE})
+    # target_link_libraries(${EXE_NAME} opencv_core opencv_imgproc opencv_imgcodecs m nvonnxparser)
+    target_link_libraries(${EXE_NAME} m nvonnxparser)
     target_link_libraries(${EXE_NAME} ${OpenCV_LIBS} ${CUDA_LIBRARIES} ${TENSORRT_LIBRARY} ${Boost_LIBRARIES})
-    target_link_libraries(${EXE_NAME} m)
 endforeach()
 
+# 遍历 src 目录下的一级子目录
+file(GLOB CHILD_DIRS "src/*")
+foreach(DIR ${CHILD_DIRS})
+    if(IS_DIRECTORY ${DIR})
+        # 获取目录名称作为可执行文件的名称
+        get_filename_component(DIR_NAME ${DIR} NAME)
+
+        # 收集该目录下的所有源文件
+        file(GLOB DIR_SRC_FILES "${DIR}/*.c" "${DIR}/*.cpp" "${DIR}/*.cu")
+
+        # 为这些源文件创建一个可执行目标
+        add_executable(${DIR_NAME} ${DIR_SRC_FILES})
+        target_link_libraries(${DIR_NAME} ${OpenCV_LIBS} ${CUDA_LIBRARIES} ${TENSORRT_LIBRARY} m nvonnxparser)
+        target_link_libraries(${DIR_NAME} ${CUDA_LIBRARIES} ${TENSORRT_LIBRARY} m nvonnxparser opencv_core opencv_imgproc opencv_imgcodecs)
+        # ... 其他链接库 ...
+    endif()
+endforeach()

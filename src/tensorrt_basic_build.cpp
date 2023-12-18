@@ -72,8 +72,6 @@ int main() {
     saveWeight("fc1_bias", fc1_bias_data, output_size);
     auto fc1_weight_data_vec = loadWeight("fc1_weight");   
     auto fc1_bias_data_vec = loadWeight("fc1_bias");
-    print(fc1_bias_data_vec.size());
-    print(fc1_weight_data_vec.size());
     nvinfer1::Weights fc1_weight{nvinfer1::DataType::kFLOAT, fc1_weight_data_vec.data(), static_cast<int64_t>(fc1_weight_data_vec.size())}; 
     nvinfer1::Weights fc1_bias{nvinfer1::DataType::kFLOAT, fc1_bias_data_vec.data(), static_cast<int64_t>(fc1_bias_data_vec.size())};
 #if oldversion
