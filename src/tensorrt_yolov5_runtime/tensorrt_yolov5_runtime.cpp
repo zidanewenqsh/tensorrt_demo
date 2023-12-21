@@ -27,6 +27,7 @@
 
 #define print(x) std::cout << #x << ": " << x << std::endl;
 #define oldversion 0
+#define v1 0
 // class Logger : public nvinfer1::ILogger {
 //     void log(Severity severity, const char *msg) noexcept override {
 //         if (severity != Severity::kINFO) {
@@ -104,9 +105,18 @@ int inference(std::string &trt_file) {
     int input_numel = input_batch * kInputH * kInputW * 3;
     checkRuntime(cudaMallocHost(&input_data_host, sizeof(float) * input_numel));
     checkRuntime(cudaMalloc(&input_data_device, sizeof(float) * input_numel));
+#if v1
     // 预处理
     auto matrix = std::unique_ptr<float[]>(new float[6 * 2]);
     preprocess_cpu(img, input_data_host, (float*)matrix.get(), kInputW, kInputH, false);
+#else
+    auto matrix = calculate_invmatrix(img.cols, img.rows, kInputW, kInputH);
+    preprocess_cpu_v2(img, input_data_host, (float*)matrix.get(), kInputW, kInputH, false);
+#endif
+    // for (int i = 0; i < input_numel; i++) {
+    //     printf("%f ", input_data_host[i]);
+    // }
+    printf("\n");
     // saveWeight("matrix.data", (float*)matrix.get(), 12);
     checkRuntime(cudaMemcpyAsync(input_data_device, input_data_host, input_numel * sizeof(float), cudaMemcpyHostToDevice, stream));
 
@@ -139,9 +149,17 @@ int inference(std::string &trt_file) {
     checkRuntime(cudaStreamSynchronize(stream));
     saveWeight("yolov5output.data", output_data_host, output_numel);
     std::vector<Box> resboxes = postprocess_cpu(output_data_host, output_batch, output_numbox, output_numprob, kConfThresh, kNmsThresh);
+#if v1
     float *d2i = (float*)matrix.get() + 6;
+#else
+    float *d2i = (float*)matrix.get();
+    for (int i = 0; i < 6; i++) {
+        std::cout << d2i[i] << " ";
+    }
+    std::cout << std::endl;
+#endif
     cv::Mat img_draw = draw(resboxes, img, d2i);
-    cv::imwrite("bus_result.jpg", img_draw);
+    cv::imwrite("bus_result2.jpg", img_draw);
 
     cudaFree(input_data_device);
     cudaFree(output_data_device);
@@ -154,5 +172,6 @@ int inference(std::string &trt_file) {
 int main() {
     std::string trt_file = "yolov5_engine.trtmodel";
     inference(trt_file);
+    printf("Done!\n");
     return 0;
 }
