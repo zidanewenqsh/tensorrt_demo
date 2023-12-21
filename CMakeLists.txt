@@ -60,7 +60,7 @@ set(ENV{LD_LIBRARY_PATH} "/usr/local/lib:$ENV{LD_LIBRARY_PATH}")
 
 # 指定源文件目录
 # file(GLOB_RECURSE SRC_FILES "src/*.c" "src/*.cpp" "src/*.cu")
-file(GLOB SRC_FILES "src/*.c" "src/*.cpp" "src/*.cu")
+file(GLOB SRC_FILES "src/*.c" "src/*.cpp" "src/*.cu" "test/*.c" "test/*.cpp" "test/*.cu")
 
 # 为每个源文件创建一个可执行目标
 foreach(SOURCE_FILE ${SRC_FILES})
