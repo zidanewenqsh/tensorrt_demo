@@ -1,8 +1,9 @@
 .idea/
-test*
+
 .cache/
-build/
+build*/
 bin/
+cmp/
 # Prerequisites
 *.d
 

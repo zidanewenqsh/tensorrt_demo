@@ -5,7 +5,7 @@ const static char* kInputTensorName = "images";
 const static char* kOutputTensorName = "output0";
 constexpr static int kInputH = 640;
 constexpr static int kInputW = 640;
-const static float kNmsThresh = 0.7f;
-const static float kConfThresh = 0.4f;
+const static float kNmsThresh = 0.5f;
+const static float kConfThresh = 0.3f;
 
 #endif

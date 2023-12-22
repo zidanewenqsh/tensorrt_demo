@@ -1,36 +1,36 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 
-// letterbox函数的实现
-static cv::Mat letterbox(cv::Mat &src, int w, int h, float* i2d, float *d2i) {
-    int width = src.cols;
-    int height = src.rows;
+// // letterbox函数的实现
+// static cv::Mat letterbox(cv::Mat &src, int w, int h, float* i2d, float *d2i) {
+//     int width = src.cols;
+//     int height = src.rows;
 
-    float scale = std::min(float(w) / width, float(h) / height);
-    i2d[0] = scale;
-    i2d[1] = 0;
-    i2d[2] = (-width * scale + w) / 2;
-    i2d[3] = 0;
-    i2d[4] = scale;
-    i2d[5] = (-height * scale + h) / 2;
+//     float scale = std::min(float(w) / width, float(h) / height);
+//     i2d[0] = scale;
+//     i2d[1] = 0;
+//     i2d[2] = (-width * scale + w) / 2;
+//     i2d[3] = 0;
+//     i2d[4] = scale;
+//     i2d[5] = (-height * scale + h) / 2;
 
-    d2i[0] = 1 / scale;
-    d2i[1] = 0;
-    d2i[2] = (width * scale - w) / 2 / scale;
-    d2i[3] = 0;
-    d2i[4] = 1 / scale;
-    d2i[5] = (height * scale - h) / 2 / scale;
+//     d2i[0] = 1 / scale;
+//     d2i[1] = 0;
+//     d2i[2] = (width * scale - w) / 2 / scale;
+//     d2i[3] = 0;
+//     d2i[4] = 1 / scale;
+//     d2i[5] = (height * scale - h) / 2 / scale;
 
-    cv::Mat M(2, 3, CV_32F, i2d);
-    cv::Mat out = cv::Mat::zeros(h, w, CV_8UC3);
-    cv::warpAffine(src, out, M, out.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(114, 114, 114));  
-    return out;
-}
+//     cv::Mat M(2, 3, CV_32F, i2d);
+//     cv::Mat out = cv::Mat::zeros(h, w, CV_8UC3);
+//     cv::warpAffine(src, out, M, out.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(114, 114, 114));  
+//     return out;
+// }
 
 
-void preprocess_cpu(const cv::Mat& img, float *ret, float* matrix, int w, int h, bool norm=false) {
+void preprocess_opencv_cpu(const cv::Mat& img, float *ret, float* i2d, int w, int h, bool norm=false) {
     // 创建图像副本
-    cv::Mat processed = img.clone();
+    cv::Mat img0 = img.clone();
     // 均值和标准差
     float mean[3] = {0}, std[3] = {1, 1, 1};
     if (norm) {
@@ -41,16 +41,19 @@ void preprocess_cpu(const cv::Mat& img, float *ret, float* matrix, int w, int h,
         std[1]  = 0.224;
         std[2]  = 0.225;
     };
-    // 如果图像是BGR格式，则转换为RGB，否则相反
-    cv::cvtColor(processed, processed, cv::COLOR_BGR2RGB);
 
     // 应用letterbox变换
-    processed = letterbox(processed, w, h, matrix, matrix + 6);
+    cv::Mat processed = cv::Mat::zeros(h, w, CV_8UC3);
+    cv::Mat M(2, 3, CV_32F, i2d);
+    cv::warpAffine(img0, processed, M, processed.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(114, 114, 114));  
+    // processed = letterbox(processed, w, h, matrix, matrix + 6);
+    // 如果图像是BGR格式，则转换为RGB，否则相反
+    cv::cvtColor(processed, processed, cv::COLOR_BGR2RGB);
 
     // 转换为float32
     processed.convertTo(processed, CV_32F, 1.0 / 255.0);
     // processed.convertTo(processed, CV_32F, 1.0);
-
+#if 0
     // 减去均值并除以标准差, hwc转为chw
     int channelSize = w * h;
     float *c1 = ret, *c2 = ret + channelSize, *c3 = ret + channelSize * 2;
@@ -61,6 +64,26 @@ void preprocess_cpu(const cv::Mat& img, float *ret, float* matrix, int w, int h,
             *(c3++) = (processed.at<cv::Vec3f>(i, j)[2]-mean[2])/std[2];
         }
     }
+#else
+  // NHWC to NCHW：rgbrgbrgb to rrrgggbbb：
+  std::vector<cv::Mat> channels;
+  cv::split(processed, channels); // 将输入图像分解成三个单通道图像：rrrrr、ggggg、bbbbb
+
+  // 将每个单通道图像进行reshape操作，变为1x1xHxW的四维矩阵
+  for (int i = 0; i < 3; i++) {
+    cv::Mat img = channels[i];
+    // reshape参数分别是cn：通道数，rows：行数
+    // 类似[[r,r,r,r,r]]或[[g,g,g,g,g]]或[[b,b,b,b,b]]，每个有width * height个元素
+    channels[i] = (img.reshape(1, 1)-mean[i])/std[i];
+
+  }
+  // 将三个单通道图像拼接成一个三通道图像，即rrrrr、ggggg、bbbbb拼接成rrrgggbbb
+  // cv::Mat warp_dst_nchw;
+  cv::hconcat(channels, processed);
+  // 将三通道图像转换为float32
+//   ret = (float*)processed.data;
+    memcpy(ret, processed.data, w * h * 3 * sizeof(float));
+#endif
     return ;
 }
 
@@ -85,6 +108,27 @@ float bilinearInterpolateChannel(const cv::Mat& img, float x, float y, int chann
     return (1 - b) * inter1 + b * inter2;
 }
 
+
+std::unique_ptr<float[]> calculate_matrix(int width, int height, int w, int h) {
+    float scale = std::min((float)w/width, (float)h/height);
+    // float *matrix = new float[12];
+    auto matrix = std::unique_ptr<float[]>(new float[12]);
+    float *i2d = matrix.get();
+    float *d2i = matrix.get() + 6;
+    i2d[0] = scale;
+    i2d[1] = 0;
+    i2d[2] = (-width * scale + w) / 2;
+    i2d[3] = 0;
+    i2d[4] = scale;
+    i2d[5] = (-height * scale + h) / 2;
+    d2i[0] = 1 / scale;
+    d2i[1] = 0;
+    d2i[2] = (width * scale - w) / 2 / scale;
+    d2i[3] = 0 ;
+    d2i[4] = 1 / scale;
+    d2i[5] = (height * scale - h) / 2 / scale;
+    return matrix;
+}
 
 std::unique_ptr<float[]> calculate_invmatrix(int width, int height, int w, int h) {
     float scale = std::min((float)w/width, (float)h/height);
