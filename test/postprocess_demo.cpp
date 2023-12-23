@@ -108,6 +108,13 @@ int main() {
     float confidence_threshold = 0.25;
     float nms_threshold = 0.5;
     auto data = loadWeight("yolov5output.data");
+    auto matrix_vec = loadWeight("matrix.data");
+    for (unsigned int i = 0; i < matrix_vec.size(); i++) {
+        std::cout << matrix_vec[i] << " ";
+    }
+    std::cout << std::endl;
+    float *matrix_inv = matrix_vec.data() + 6;
+    cv::Mat img = cv::imread("bus.jpg");
     // for (int i = 0; i < 10; i++) {
     //     std::cout << data[i] << std::endl;
     // }
@@ -154,13 +161,6 @@ int main() {
         box.print();
     }
 
-    auto matrix_vec = loadWeight("matrix.data");
-    for (unsigned int i = 0; i < matrix_vec.size(); i++) {
-        std::cout << matrix_vec[i] << " ";
-    }
-    std::cout << std::endl;
-    float *matrix_inv = matrix_vec.data() + 6;
-    cv::Mat img = cv::imread("bus.jpg");
     for (auto box:res) {
         int x1 = matrix_inv[0] * box.x1 + matrix_inv[1] * box.y1 + matrix_inv[2];
         int y1 = matrix_inv[3] * box.x1 + matrix_inv[4] * box.y1 + matrix_inv[5];

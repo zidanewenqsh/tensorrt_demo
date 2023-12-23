@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <opencv2/opencv.hpp>
-
+#define blockS 32 // 二维的最大32
 __host__ float bilinearInterpolateChannel_cpu(const unsigned char* img, int width, int height, float x, float y, int channel, int channels, const unsigned char borderValue = 114) {
     if (x < 0 || y < 0 || x >= width - 1 || y >= height - 1) {
         return static_cast<float>(borderValue);
@@ -100,8 +100,11 @@ void preprocess_gpu(const unsigned char* d_input, float* d_output, const float* 
     //     printf("d_input[%d]: %d\n", i, d_input[i]);
     // }
     // int bSize
-    dim3 blockSize(16, 16);
+    dim3 blockSize(blockS, blockS);
     dim3 gridSize((target_width + blockSize.x - 1) / blockSize.x, (target_height + blockSize.y - 1) / blockSize.y);
+    // int x = target_width + blockSize.x - 1;
+    // int y = target_height + blockSize.y - 1;
+    printf("gridSize: %d, %d, %d\n", gridSize.x, gridSize.y, gridSize.x * gridSize.y);
     // int a = (target_width + blockSize.x - 1) / blockSize.x;
     // int b = (target_height + blockSize.y - 1) / blockSize.y;
     // int c = a * b;

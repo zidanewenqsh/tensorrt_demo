@@ -17,7 +17,7 @@ static const char* cocolabels[] = {
     "scissors", "teddy bear", "hair drier", "toothbrush"
 };
 
-std::vector<cv::Scalar> colors = {
+static std::vector<cv::Scalar> colors = {
     cv::Scalar(255, 0, 0),      // 蓝色
     cv::Scalar(0, 255, 0),      // 绿色
     cv::Scalar(0, 0, 255),      // 红色

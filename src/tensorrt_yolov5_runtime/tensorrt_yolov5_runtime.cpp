@@ -3,6 +3,7 @@
 #include "config.h"
 #include <cuda_runtime_api.h>
 #include <NvInferRuntime.h>
+#include <opencv2/core/cvdef.h>
 #include <opencv2/highgui.hpp>
 #include <unistd.h>
 #include <cstdio>
@@ -17,6 +18,7 @@
 #include <cuda_runtime.h>
 #include <logger.h>
 #include "preprocess_gpu.cuh"
+#include "postprocess_gpu.cuh"
 // #include "common/logger.h"
 // #include "common/buffers.h"
 
@@ -26,10 +28,11 @@
 #include "preprocess.h"
 #include "postprocess.h"
 
-#define print(x) std::cout << #x << ": " << x << std::endl;
+// #define print(x) std::cout << #x << ": " << x << std::endl;
 #define oldversion 0
 #define opencvcpu 0
 #define preprocessongpu 1 
+#define postprocessongpu 1 
 // class Logger : public nvinfer1::ILogger {
 //     void log(Severity severity, const char *msg) noexcept override {
 //         if (severity != Severity::kINFO) {
@@ -132,6 +135,7 @@ int inference(std::string &trt_file, std::string &img_file) {
     checkRuntime(cudaMalloc(&output_data_device, sizeof(float) * output_numel));
 
 #if preprocessongpu
+#if 1
     // 分配和初始化 GPU 内存
     // 将均值和方差拷贝到 GPU 内存
     float *d_mean;
@@ -150,6 +154,44 @@ int inference(std::string &trt_file, std::string &img_file) {
     checkRuntime(cudaMemcpyAsync(d_matrix, d2i, 6 * sizeof(float), cudaMemcpyHostToDevice, stream));
     // 预处理，结果保存在 input_data_device 中， 这是预处理后的输入数据，下一步要送到网络中
     preprocess_gpu(d_input, input_data_device, d_matrix, img.cols, img.rows, kInputW, kInputH, d_mean, d_std);
+#else
+    // 分配和初始化 GPU 内存
+    float *d_mean;
+    float *d_std;
+    int w = kInputW, h = kInputH;
+    cudaMalloc(&d_mean, 3 * sizeof(float));
+    cudaMalloc(&d_std, 3 * sizeof(float));
+    cudaMemcpy(d_mean, mean, 3 * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_std, std, 3 * sizeof(float), cudaMemcpyHostToDevice);
+    uchar* d_input;
+    float* d_output;
+    float* d_matrix;
+    uchar* h_input;
+    float* h_output;
+    cudaMallocHost(&h_input, img.total() * img.channels());
+    cudaMallocHost(&h_output, 3 * w * h * sizeof(float));
+    // float d = bilinearInterpolateChannel_cpu(img.data, img.cols, img.rows, img.cols-1.5f, img.rows-1.5f, 2, 3);
+    // printf("d=%f\n", d);
+    int img_total = img.total() * sizeof(unsigned char) * img.channels();
+    printf("img_total: %d\n", img_total);
+    cudaMalloc(&d_input, img.total() * sizeof(unsigned char) * img.channels());
+    cudaMalloc(&d_output, 3 * w * h * sizeof(float));
+    cudaMalloc(&d_matrix, 6 * sizeof(float));
+
+    cudaMemcpy(d_input, img.data, img.total() * sizeof(uchar) * img.channels(), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_matrix, d2i, 6 * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(h_input, d_input, img.total() * sizeof(uchar) * img.channels(), cudaMemcpyDeviceToHost);
+    for (int i = 0; i < 10; i++) {
+        printf("h_input[%d]: %d, img.data[%d]: %d\n", i, h_input[i], i, img.data[i]);
+    }
+    // // 设置 CUDA 网格和块的大小
+    // dim3 blockSize(16, 16);
+    // dim3 gridSize((w + blockSize.x - 1) / blockSize.x, (h + blockSize.y - 1) / blockSize.y);
+
+    // // 调用 CUDA 内核
+    // preprocess_kernel<<<gridSize, blockSize>>>(d_input, d_output, d_matrix, img.cols, img.rows, w, h, mean, std);
+    preprocess_gpu(d_input, d_output, d_matrix, img.cols, img.rows, w, h, d_mean, d_std);
+#endif
 #else 
 #if opencvcpu
     // 预处理
@@ -184,6 +226,34 @@ int inference(std::string &trt_file, std::string &img_file) {
         return -1;
     }
 
+#if postprocessongpu
+// #if 1
+    // 分配 GPU 内存以存储过滤后的边界框
+    gBox* h_filtered_boxes;
+    gBox* d_filtered_boxes;
+    int* h_box_count;
+    int* d_box_count;
+    checkRuntime(cudaMallocHost(&h_filtered_boxes, output_numbox * sizeof(gBox))); 
+    checkRuntime(cudaMallocHost(&h_box_count, sizeof(int)));
+    checkRuntime(cudaMalloc(&d_filtered_boxes, output_numbox * sizeof(gBox))); 
+    checkRuntime(cudaMalloc(&d_box_count, sizeof(int)));
+    checkRuntime(cudaMemset(d_box_count, 0, sizeof(int)));
+    checkRuntime(cudaMemset(d_filtered_boxes, 0, output_numbox * sizeof(gBox)));
+
+    // 调用封装的函数
+    postprocess_cuda(output_data_device, d_filtered_boxes, d_box_count, d_matrix,
+            output_numbox, output_numprob, kConfThresh, kNmsThresh);
+    
+    checkRuntime(cudaMemcpyAsync(h_box_count, d_box_count, sizeof(int), cudaMemcpyDeviceToHost, stream));
+    checkRuntime(cudaStreamSynchronize(stream)); // 我要用h_box_count，所以要同步
+    checkRuntime(cudaMemcpyAsync(h_filtered_boxes, d_filtered_boxes, (*h_box_count) * sizeof(gBox), cudaMemcpyDeviceToHost, stream));
+    checkRuntime(cudaStreamSynchronize(stream));
+    printf("h_box_count: %d\n", *h_box_count);
+    cv::Mat img_draw = draw_g(h_filtered_boxes, *h_box_count, img);
+    cv::imwrite("result_gpu.jpg", img_draw);
+// #else
+// #endif
+#else
     checkRuntime(cudaMemcpyAsync(output_data_host, output_data_device, sizeof(float) * output_numel, cudaMemcpyDeviceToHost, stream));
     checkRuntime(cudaStreamSynchronize(stream));
 
@@ -193,12 +263,17 @@ int inference(std::string &trt_file, std::string &img_file) {
     // 绘制结果
     cv::Mat img_draw = draw(resboxes, img, d2i);
     cv::imwrite("result.jpg", img_draw);
-
+#endif
+    // 释放资源
 #if preprocessongpu
-        cudaFree(d_input);
+        // cudaFree(d_input);
         cudaFree(d_matrix);
         cudaFree(d_mean);
         cudaFree(d_std);
+#endif
+#if postprocessongpu
+        cudaFree(d_filtered_boxes);
+        cudaFree(d_box_count);
 #endif
     cudaFree(input_data_device);
     cudaFree(output_data_device);

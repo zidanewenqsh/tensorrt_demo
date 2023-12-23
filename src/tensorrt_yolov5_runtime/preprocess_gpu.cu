@@ -48,7 +48,7 @@ void preprocess_gpu(const unsigned char* d_input, float* d_output, const float* 
     // 检查 CUDA 是否成功执行
     cudaError_t error = cudaGetLastError();
     if (error != cudaSuccess) {
-        std::cerr << "CUDA Error: " << cudaGetErrorString(error) << std::endl;
+        std::cerr << "Preprocess CUDA Error: " << cudaGetErrorString(error) << std::endl;
     }
     // 同步 CUDA 设备以确保所有操作都已完成
     cudaDeviceSynchronize();
