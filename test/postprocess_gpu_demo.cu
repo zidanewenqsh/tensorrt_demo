@@ -139,7 +139,7 @@ __global__ void filter_boxes_kernel(float* boxes, Box *filtered_boxes, float* d_
     // out_box[5] = static_cast<float>(label);
     // out_box[6] = atomic;
 }
-#if 0
+#if 1
 __global__ void nms(Box *filtered_boxes, int box_count,  float nms_threshold) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= box_count) return;
@@ -291,7 +291,7 @@ int main() {
     float *matrix_inv = matrix_vec.data() + 6;
     cv::Mat img = cv::imread("bus.jpg");
 #if 1
-        // 假设 data 是从模型输出的数据
+    // 假设 data 是从模型输出的数据
     // std::vector<float> h_filtered_boxes;
     int output_batch = 1;
     int output_numbox = 25200;
