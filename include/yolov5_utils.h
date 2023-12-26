@@ -1,5 +1,5 @@
-#ifndef __UTILS_H__
-#define __UTILS_H__
+#ifndef __YOLOV5_UTILS_H__
+#define __YOLOV5_UTILS_H__
 #include <iostream>
 #include <vector>
 #include <fstream>

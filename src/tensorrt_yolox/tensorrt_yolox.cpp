@@ -1,12 +1,12 @@
 #include "my_tensorrt.h"
-#include "yolov5_config.h"
 #include "preprocess_gpu.cuh"
 #include "postprocess_gpu.cuh"
 #include <cstdlib>
 #include <chrono>
 #include "preprocess.h"
 #include "postprocess.h"
-#include "yolov5_utils.h"
+#include "yolox_config.h"
+#include "yolox_utils.h"
 // #include "logger.h"
 // #include "cuda_utils.h"
 #define PROCESSONGPU 1
@@ -31,22 +31,24 @@ static bool __check_cuda_runtime(cudaError_t code, const char* op, const char* f
     return true;
 }
 
+// static int totalsize = 0;
 // static int idx = 0;
-class Yolov5:public MyTensorRT {
+class Yolox:public MyTensorRT {
 public:
-    Yolov5(std::string& name, int buffer_size) 
+    Yolox(std::string& name, int buffer_size) 
         : MyTensorRT(name, buffer_size) {
         if (init() < 0) {
             std::cout << "init failed" << std::endl;
             exit(-1);
         }
-        std::cout << "Yolov5()" << std::endl;
+        std::cout << "Yolox()" << std::endl;
     }
 
-    ~Yolov5() {
-        std::cout << "~Yolov5())" << std::endl;
+    ~Yolox() {
+        std::cout << "~Yolovx())" << std::endl;
     }
     int init() override {
+
         inputW = kInputW;
         inputH = kInputH;
         // 初始化
@@ -302,7 +304,7 @@ public:
 
 int main() {
     std::string name = kModelName;
-    Yolov5 yolo(name, 1<<28);
+    Yolox yolo(name, 1<<28);
     std::string img_file = "bus.jpg";
     // yolo.forward_image(img_file);
     // printf("totalsize:%d\n", totalsize);

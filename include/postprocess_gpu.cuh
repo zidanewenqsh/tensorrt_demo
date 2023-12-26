@@ -21,7 +21,7 @@ void postprocess_cuda(float* d_data, gBox *d_filtered_boxes, int *d_box_count, f
     int output_numbox, int output_numprob, float confidence_threshold, float nms_threshold);
 int postprocess_cuda(float* d_data, gBox *d_filtered_boxes, int *d_box_count, int output_numbox, int output_numprob, 
     float confidence_threshold, float nms_threshold, float *d_matrix);
-int postprocess_cuda(float* d_data, gBox *d_filtered_boxes, int *d_box_count, int *h_box_count, int output_numbox, int output_numprob, 
+int postprocess_cuda(float* d_data, gBox *d_filtered_boxes, int *d_box_count, int *h_box_count, int output_batch, int output_numbox, int output_numprob, 
     float confidence_threshold, float nms_threshold, float *d_matrix);
 cv::Mat draw_g(gBox *boxes, int count, cv::Mat img);
 cv::Mat draw_gpu(gBox *boxes, int count, cv::Mat img);
