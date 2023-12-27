@@ -55,7 +55,7 @@ static std::vector<Box> nms(std::vector<Box> &bboxes, const float iou_threshold)
         }
         res.push_back(bboxes[i]);
         for (unsigned int j = i + 1; j < bboxes.size(); j++) {
-            if (flag[j]) {
+            if (flag[j] || bboxes[i].label != bboxes[j].label) {
                 continue;
             }
             if (iou(bboxes[i], bboxes[j]) > iou_threshold) {

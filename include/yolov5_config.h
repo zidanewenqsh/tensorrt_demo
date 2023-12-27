@@ -11,6 +11,6 @@ constexpr static int kImageWMax = 1024;
 constexpr static int kChannel = 3;
 constexpr static int kMaxBatch = 1;
 const static float kNmsThresh = 0.5f;
-const static float kConfThresh = 0.3f;
+const static float kConfThresh = 0.25f;
 
 #endif

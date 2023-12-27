@@ -22,7 +22,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -arch=sm_61") # 根据您的 GPU 架构调整
 # 查找 Boost
-find_package(Boost REQUIRED COMPONENTS timer)
+# find_package(Boost REQUIRED COMPONENTS timer)
 # 查找 OpenCV
 find_package(OpenCV REQUIRED)
 
@@ -48,7 +48,8 @@ message(STATUS "\${TENSORRT_LIBRARY}=${TENSORRT_LIBRARY}")
 message(STATUS "\${Boost_LIBRARIES}=${Boost_LIBRARIES}")
 
 # 指定 include 目录
-include_directories(${OpenCV_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ${TENSORRT_INCLUDE_DIR} ${Boost_INCLUDE_DIR})
+# include_directories(${OpenCV_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ${TENSORRT_INCLUDE_DIR} ${Boost_INCLUDE_DIR})
+include_directories(${OpenCV_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ${TENSORRT_INCLUDE_DIR})
 include_directories(include include/common)
 # 指定库文件目录
 link_directories(lib /usr/local/lib /usr/lib/x86_64-linux-gnu/ /usr/local/cuda/lib64 /usr/local/lib64)
@@ -69,6 +70,7 @@ foreach(SOURCE_FILE ${SRC_FILES})
     # target_link_libraries(${EXE_NAME} opencv_core opencv_imgproc opencv_imgcodecs m nvonnxparser)
     target_link_libraries(${EXE_NAME} m nvonnxparser)
     target_link_libraries(${EXE_NAME} ${OpenCV_LIBS} ${CUDA_LIBRARIES} ${TENSORRT_LIBRARY} ${Boost_LIBRARIES})
+    # target_link_libraries(${EXE_NAME} ${OpenCV_LIBS} ${CUDA_LIBRARIES} ${TENSORRT_LIBRARY})
 endforeach()
 
 # 遍历 src 目录下的一级子目录
