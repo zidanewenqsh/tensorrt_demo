@@ -4,6 +4,7 @@ temp/
 build*/
 bin/
 cmp/
+backup/
 # Prerequisites
 *.d
 
