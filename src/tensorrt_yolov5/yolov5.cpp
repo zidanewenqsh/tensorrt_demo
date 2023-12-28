@@ -111,11 +111,14 @@ int Yolov5::init() {
         std::cout << "malloc_device h_mean failed" << std::endl;
         return -1;
     }
+    // h_mean = new float[3];
     memcpy(h_mean, mean, 3 * sizeof(float));
+    // checkRuntime(cudaMemcpy(h_mean, mean, 3 * sizeof(float), cudaMemcpyHostToHost));
     if (malloc_host(&h_std, 3 * sizeof(float))<0) {
         std::cout << "malloc_device h_std failed" << std::endl;
         return -1;
     }
+    // h_std = new float[3];
     memcpy(h_std, std, 3 * sizeof(float));
     if (malloc_device(&d_mean, 3 * sizeof(float))<0) {
         std::cout << "malloc_device d_mean failed" << std::endl;
@@ -279,6 +282,14 @@ int Yolov5::inference() {
     return 0;
 }
 int Yolov5::forward_image(std::string &img_file) {
+    if (malloc_host(&h_filtered_boxes, sizeof(int) * (output_numel + 1))) {
+        std::cout << "malloc_host h_filtered_boxes failed" << std::endl;
+        return -1;
+    }
+    if (malloc_device(&d_filtered_boxes, sizeof(int) * (output_numel) + 1)) {
+        std::cout << "malloc_device d_filtered_boxes failed" << std::endl;
+        return -1;
+    }
     // auto imgname = extractFilenameWithoutExtension(img_file);
     auto imgname = extractFilename(img_file);
     printf("imgname:%s\n", imgname.c_str());
@@ -312,5 +323,52 @@ int Yolov5::forward_image(std::string &img_file) {
     std::chrono::duration<double> elapsed = end - start;
     std::cout << "Elapsed time: " << elapsed.count() << " seconds" << std::endl;
     drawimg(img, savepath);
+    free_host(h_filtered_boxes);
+    free_device(d_filtered_boxes);
+    return 0;
+}
+
+int Yolov5::malloc_host(void **ptr, size_t size) {
+    if (mempool == nullptr) {
+        mempool = std::make_unique<MemoryPool>();
+        if (mempool == nullptr) {
+            std::cerr << "mempool is nullptr" << std::endl;
+            return -1;
+        }
+        // std::cerr << "mempool is nullptr" << std::endl;
+        // return -1;
+    }
+    *ptr =  mempool->allocate(size);
+    return 0; 
+}
+int Yolov5::malloc_device(void** ptr, size_t size) {
+    if (mempool_gpu == nullptr) {
+        mempool_gpu = std::make_unique<MemoryPoolGpu>();
+        if (mempool_gpu == nullptr) {
+            std::cerr << "mempool_gpu is nullptr" << std::endl;
+            return -1;
+        }
+        // std::cerr << "mempool is nullptr" << std::endl;
+        // return -1;
+    }
+    *ptr =  mempool_gpu->allocate(size);
+    return 0;
+}
+int Yolov5::free_host(void *ptr) {
+    if (mempool == nullptr) {
+        std::cerr << "mempool is nullptr" << std::endl;
+        return -1;
+    }
+    mempool->deallocate(ptr);
+    std::cout << "free_device success" << std::endl;
+    return 0; 
+}
+int Yolov5::free_device(void* ptr) {
+    if (mempool_gpu == nullptr) {
+        std::cerr << "mempool is nullptr" << std::endl;
+        return -1;
+    }
+    mempool_gpu->deallocate(ptr);
+    std::cout << "free_device success" << std::endl;
     return 0;
 }

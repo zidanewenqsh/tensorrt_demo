@@ -18,10 +18,11 @@ bool __check_cuda_runtime(cudaError_t code, const char* op, const char* file, in
     return true;
 }
 
+
 class MemoryPool {
 public:
-    MemoryPool(size_t smallSize=0x100, int smallCount=0x10)
-        :smallSize(smallSize), smallPoolSize(smallSize*smallCount) {
+    MemoryPool(size_t small_size=0x100, int small_count=0x10)
+        :smallSize(small_size), smallPoolSize(smallSize*small_count) {
         // 初始化小块内存
         addSmallBlock(smallPoolSize);
 
@@ -30,12 +31,15 @@ public:
 
         // for (int i = 0; i < 2; ++i) {
         //     if (1<<i < smallSize) continue;
-        int i = 0;
-        while ((1 << i++) < smallSize);
+        int i = 1;
+        // while ((1 << i++) < smallSize);
+        // int j = 1;
+        while (small_size >>=1) i++;
         // {
         //     i++;
         // }
         printf("i=%d\n", i);
+        // printf("j=%d\n", j);
         size_t blockSize = 1 << i;
         largeBlockSizes.push_back(blockSize);
         largePools.push_back({{}, blockSize}); // 为每个大小创建一个空内存池
@@ -69,19 +73,23 @@ public:
 
 
     void deallocate(void* block) {
+        while (spinlock.test_and_set(std::memory_order_acquire)); // 获取锁
         // 检查是否为大块内存
         for (auto& pool : largePools) {
             for (auto& blockInPool : pool.blocks) {
                 if (blockInPool.memory == block) {
                     blockInPool.inUse = false; // 标记为未使用
                     std::cout << "deallocate " << block << std::endl; 
+                    spinlock.clear(std::memory_order_release); // 释放锁
                     return;
                 }
             }
         }
+        spinlock.clear(std::memory_order_release); // 释放锁
     }
 
 private:
+    std::atomic_flag spinlock = ATOMIC_FLAG_INIT;
     struct LargeMemoryBlock {
         void* memory = nullptr;
         bool inUse = false;
@@ -99,16 +107,11 @@ private:
         size_t totalSize; // 整个大块内存的总大小
     };
 
-    // void* smallPoolMemory;
-    // char* nextAvailable;
     size_t smallSize; // 小于多少用小块
-    size_t maxSize; // 小于多少用小块
     size_t smallPoolSize; // 每个大块内存的大小
     std::vector<LargePool> largePools;
     std::vector<size_t> largeBlockSizes;
     std::vector<SmallMemoryBlock> smallPools;  // 用于跟踪所有小块内存的大块
-    void* currentSmallBlock = nullptr; // 当前小块内存的大块
-    char* nextAvailable = nullptr; // 指向当前大块内存中下一个可用位置
 
     void addSmallBlock(size_t size) {
         SmallMemoryBlock newBlock;
@@ -118,22 +121,35 @@ private:
         newBlock.nextAvailable = static_cast<char*>(newBlock.memory);
         smallPools.push_back(newBlock);
     }
-
     void* allocateSmall(size_t size) {
+        while (spinlock.test_and_set(std::memory_order_acquire)); // 获取锁
+
+        // 尝试在现有的小块内存中分配
         for (auto& block : smallPools) {
             if (block.freeSize >= size) {
                 void* allocatedMemory = block.nextAvailable;
                 block.nextAvailable += size;
                 block.freeSize -= size;
+                spinlock.clear(std::memory_order_release); // 释放锁
                 return allocatedMemory;
             }
         }
-        // 所有现有小块内存的大块都已满，分配一个新的大块
+
+        // 所有现有的小块内存都已满，分配一个新的大块
         addSmallBlock(smallPools[0].totalSize);
-        return allocateSmall(size);
+        SmallMemoryBlock& newBlock = smallPools.back(); // 获取刚刚添加的新块
+
+        // 直接在新块中分配内存
+        void* allocatedMemory = newBlock.nextAvailable;
+        newBlock.nextAvailable += size;
+        newBlock.freeSize -= size;
+
+        spinlock.clear(std::memory_order_release); // 释放锁
+        return allocatedMemory;
     }
 
     void* allocateLarge(size_t size) {
+        while (spinlock.test_and_set(std::memory_order_acquire)); // 获取锁
         // 如果预设的largeBlockSize不满足要求，扩容
         while (size > largeBlockSizes.back()) {
             largeBlockSizes.push_back(largeBlockSizes.back() * 2);
@@ -144,6 +160,7 @@ private:
                 for (auto& block : pool.blocks) {
                     if (!block.inUse) {
                         block.inUse = true;
+                        spinlock.clear(std::memory_order_release); // 释放锁
                         return block.memory;
                     }
                 }
@@ -152,12 +169,17 @@ private:
                 checkRuntime(cudaMalloc(&newBlock.memory, pool.blockSize));
                 newBlock.inUse = true;
                 pool.blocks.push_back(newBlock);
+                spinlock.clear(std::memory_order_release); // 释放锁
                 return newBlock.memory;
             }
         }
+        spinlock.clear(std::memory_order_release); // 释放锁
         throw std::bad_alloc();
     }
 };
+
+
+
 int main() {
     MemoryPool pool;
     std::vector<void*> smallAll;
