@@ -1,4 +1,4 @@
-#include "postprocess_gpu.h"
+#include "postprocess_gpu.cuh"
 #define INNERNMS 0
 // #define GPUNMS 0
 #define checkRuntime(op)  __check_cuda_runtime((op), #op, __FILE__, __LINE__)

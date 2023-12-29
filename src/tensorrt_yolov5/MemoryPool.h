@@ -1,5 +1,5 @@
-#ifndef __MEMPOOL_H__
-#define __MEMPOOL_H__
+#ifndef __MEMORYPOOL_H__
+#define __MEMORYPOOL_H__
 
 #include <cstddef>
 #include <iostream>
@@ -10,9 +10,9 @@
 #include <chrono>
 #include <atomic>
 // ... 可能还需要包含其他头文件 ...
-#if 1
 class MemPool {
 public:
+    MemPool(size_t blockSize);
     MemPool(size_t blockSize, size_t blockCount);
     ~MemPool();
 
@@ -26,7 +26,7 @@ private:
     std::mutex mutex;
     std::atomic<bool> stop;
 };
-#endif
+#if 1
 class MemoryPool {
 public:
     MemoryPool();
@@ -71,5 +71,5 @@ private:
     void* allocateLarge(size_t size);
     // ... 其他私有成员函数的声明 ...
 };
-
 #endif
+#endif // __MEMORYPOOL_

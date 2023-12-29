@@ -1,5 +1,5 @@
-#ifndef __MEMPOOL_H__
-#define __MEMPOOL_H__
+#ifndef __MEMORYPOOLGPU_H__
+#define __MEMORYPOOLGPU_H__
 
 #include <cstddef>
 #include <iostream>
@@ -10,11 +10,12 @@
 #include <chrono>
 #include <atomic>
 // ... 可能还需要包含其他头文件 ...
-#if 1
-class MemPool {
+
+class MemPoolGpu {
 public:
-    MemPool(size_t blockSize, size_t blockCount);
-    ~MemPool();
+    MemPoolGpu(size_t blockSize);
+    MemPoolGpu(size_t blockSize, size_t blockCount);
+    ~MemPoolGpu();
 
     void* allocate();
     void deallocate(void* block);
@@ -26,12 +27,12 @@ private:
     std::mutex mutex;
     std::atomic<bool> stop;
 };
-#endif
-class MemoryPool {
+
+class MemoryPoolGpu {
 public:
-    MemoryPool();
-    MemoryPool(size_t small_size, int small_count);
-    ~MemoryPool();
+    MemoryPoolGpu();
+    MemoryPoolGpu(size_t small_size, int small_count);
+    ~MemoryPoolGpu();
 
     void* allocate(size_t size);
     void deallocate(void* block);
@@ -57,8 +58,8 @@ private:
 
     // ... 其他私有成员变量和方法的声明 ...
 
-    // std::atomic<int> stop;
     std::atomic<bool> stop;
+    // std::atomic<int> stop;
     std::atomic_flag spinlock = ATOMIC_FLAG_INIT;
     size_t smallSize;
     size_t smallPoolSize;
@@ -72,4 +73,4 @@ private:
     // ... 其他私有成员函数的声明 ...
 };
 
-#endif
+#endif //__MEMORYPOOLGPU_H__

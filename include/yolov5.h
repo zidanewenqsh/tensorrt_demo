@@ -14,6 +14,7 @@
 #include "mempool_gpu.h"
 class Yolov5:public MyTensorRT {
 public:
+    Yolov5();
     Yolov5(std::string& name, int buffer_size);
     ~Yolov5();
     int init() override;

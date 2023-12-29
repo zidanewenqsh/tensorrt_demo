@@ -1,4 +1,4 @@
-#include "preprocess_gpu.h"
+#include "preprocess_gpu.cuh"
 
 __device__ float bilinearInterpolateChannel(const unsigned char* img, int width, int height, float x, float y, int channel, int channels, const unsigned char borderValue = 114) {
     if (x < 0 || y < 0 || x >= width - 1 || y >= height - 1) {

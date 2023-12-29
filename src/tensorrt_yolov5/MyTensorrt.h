@@ -1,5 +1,5 @@
-#ifndef __MYTENSORRT_H
-#define __MYTENSORRT_H
+#ifndef __MYTENSORRT_H__
+#define __MYTENSORRT_H__
 #include <NvInferRuntime.h>
 #include <cstddef>
 #include <cstdio>
@@ -18,15 +18,20 @@
 #include <cstdlib>
 #include <chrono>
 
+typedef struct Data_s {
+    void *dataptr;
+    int size;
+    virtual ~Data_s() {} // 添加虚析构函数
+}Data;
 // bool exists(const std::string& path);
 class MyTensorRT {
 // private:
 protected:
     size_t buffersize;
-    void *host_buffer;
-    void *device_buffer;
-    char *host_buffer_now;
-    char *device_buffer_now;
+    void *host_buffer=nullptr;
+    void *device_buffer=nullptr;
+    char *host_buffer_now=nullptr;
+    char *device_buffer_now=nullptr;
     cudaStream_t stream;
     nvinfer1::IRuntime *runtime;
     nvinfer1::ICudaEngine *engine;
@@ -45,6 +50,7 @@ protected:
     bool init_finished = false;
     std::string onnx_file;
     std::string trt_file;
+    std::string name;
     void* h_filtered_boxes = nullptr;
     void* d_filtered_boxes = nullptr;
     void* h_box_count = nullptr;
@@ -64,9 +70,11 @@ protected:
     int inputH = 640;
     bool use_int8 = false;
     bool use_fp16 = false;
+    bool set_memory = false;
 
 public:
     MyTensorRT();
+    MyTensorRT(std::string &name);
     MyTensorRT(std::string &name, int buffer_size);
     ~MyTensorRT();
 
@@ -75,11 +83,11 @@ public:
 
     int build();
     virtual int init() = 0;
+    virtual int setMemory(void *cpuptr, void *gpuptr, int buffersize) = 0;
     virtual int preprocess(cv::Mat &img) = 0;
     virtual int postprocess() = 0;
-    virtual int inference() = 0;
+    virtual int forward() = 0;
+    virtual int inference(Data *data) = 0;
 };
 
-
-
-#endif
+#endif //__MYTENSORRT_H__
