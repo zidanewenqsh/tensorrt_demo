@@ -34,16 +34,16 @@ std::vector<cv::Scalar> colors = {
     cv::Scalar(255, 192, 203),  // 粉色
     cv::Scalar(128, 128, 128)   // 灰色
 };
-std::vector<float> loadWeight(const std::string &filename) {
-    std::ifstream infile(filename, std::ios::binary);
-    assert(infile.is_open() && "loadWeight failed");
-    int size;
-    infile.read(reinterpret_cast<char *>(&size), sizeof(int));
-    std::vector<float> data(size);
-    infile.read(reinterpret_cast<char *>(data.data()), size * sizeof(float));
-    infile.close();
-    return data;
-}
+// std::vector<float> loadWeight(const std::string &filename) {
+//     std::ifstream infile(filename, std::ios::binary);
+//     assert(infile.is_open() && "loadWeight failed");
+//     int size;
+//     infile.read(reinterpret_cast<char *>(&size), sizeof(int));
+//     std::vector<float> data(size);
+//     infile.read(reinterpret_cast<char *>(data.data()), size * sizeof(float));
+//     infile.close();
+//     return data;
+// }
 typedef struct box_s {
     float x1, y1, x2, y2;
     float prob; // 概率
@@ -280,6 +280,7 @@ void post_process_cuda(float* data, Box *h_filtered_boxes, int *h_box_count, flo
     cudaFree(d_box_count);
 }
 int main() {
+    #if 0
     std::vector<Box> bboxes;
 
     auto data = loadWeight("yolov5output.data");
@@ -371,6 +372,7 @@ int main() {
     cudaFree(d_data);
     cudaFree(d_filtered_boxes);
     cudaFree(d_box_count);
+    #endif
     return 0;
 #endif
 }

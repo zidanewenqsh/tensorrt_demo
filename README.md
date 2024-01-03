@@ -6,5 +6,5 @@ My TensorRT demo projects
 export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 ```
 ```bash
-docker run -it -d --gpus all --name env_pyt_1.12 -v $(pwd):/app nvcr.io/nvidia/pytorch:22.03-py3-v0.0.1
+docker run -it -d --gpus all --name env_pyt_1.12 -v $(pwd):/app nvcr.io/nvidia/pytorch:23.12-py3-v0.0.1
 ```
